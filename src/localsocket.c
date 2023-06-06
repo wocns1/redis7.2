@@ -192,6 +192,15 @@ static int connLocalSocketWrite(connection *conn, const void *data, size_t data_
 }
 
 static int connLocalSocketRead(connection *conn, void *buf, size_t buf_len) {
+    int ret = 0;
+    if (conn->count <(MAX_QUERIES/2)) {
+        ret = snprintf(buf, buf_len, "*3\r\n$3\r\nSET\r\n$7\r\nwo-%04d\r\n$4\r\n%04d\r\n", conn->count, conn->count);
+    }
+    else {
+        ret = snprintf(buf, buf_len, "*2\r\n$3\r\nGET\r\n$7\r\nwo-%04d\r\n", (conn->count - (MAX_QUERIES/2)));
+    }
+    //serverLog(LL_VERBOSE, "buf %s\n", buf);
+    /*
     char *inarray[] = {"*3\r\n$3\r\nSET\r\n$4\r\nwo-0\r\n$4\r\n0000\r\n",
     "*3\r\n$3\r\nSET\r\n$4\r\nwo-1\r\n$4\r\n0001\r\n",
     "*3\r\n$3\r\nSET\r\n$4\r\nwo-2\r\n$4\r\n0002\r\n",
@@ -199,7 +208,8 @@ static int connLocalSocketRead(connection *conn, void *buf, size_t buf_len) {
     "*3\r\n$3\r\nSET\r\n$4\r\nwo-4\r\n$4\r\n0004\r\n",
     "*2\r\n$3\r\nGET\r\n$4\r\nwo-1\r\n",
       };
-    int ret = snprintf(buf, buf_len, "%s", inarray[conn->count]);
+      */
+    //int ret = snprintf(buf, buf_len, "%s", inarray[conn->count]);
     if (!ret) {
         conn->state = CONN_STATE_CLOSED;
     } else if (ret < 0 && errno != EAGAIN) {

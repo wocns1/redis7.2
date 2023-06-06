@@ -2289,7 +2289,7 @@ int processMultibulkBuffer(client *c) {
         if (c->bulklen == -1) {
             newline = strchr(c->querybuf+c->qb_pos,'\r');
             
-            serverLog(LL_VERBOSE, "%s\n",newline);
+            //serverLog(LL_VERBOSE, "%s\n",newline);
             if (newline == NULL) {
                 if (sdslen(c->querybuf)-c->qb_pos > PROTO_INLINE_MAX_SIZE) {
                     addReplyError(c,
@@ -2677,8 +2677,8 @@ void readQueryFromClient(connection *conn) {
     fprintf(f, "%s\n", c->querybuf);
     fclose(f);
 */
-    serverLog(LL_VERBOSE, "Reading from client: %s", getObjectTypeName(c->name));
-    serverLog(LL_VERBOSE, "buffer read is %s", c->querybuf);
+    //serverLog(LL_VERBOSE, "Reading from client: %s", getObjectTypeName(c->name));
+    //serverLog(LL_VERBOSE, "buffer read is %s", c->querybuf);
     sdsIncrLen(c->querybuf,nread);
     qblen = sdslen(c->querybuf);
     if (c->querybuf_peak < qblen) c->querybuf_peak = qblen;

@@ -7166,6 +7166,7 @@ int main(int argc, char **argv)
     else if (strstr(exec_name, "redis-check-aof") != NULL)
         redis_check_aof_main(argc, argv);
 
+    int woflag = 0;
     if (argc >= 2)
     {
         j = 1; /* First option to parse in argv[] */
@@ -7175,6 +7176,15 @@ int main(int argc, char **argv)
         if (strcmp(argv[1], "-v") == 0 ||
             strcmp(argv[1], "--version") == 0)
             version();
+        if (strcmp(argv[1], "-wcnt") == 0 ||
+            strcmp(argv[1], "--wocount") == 0) {
+            woflag = 1;
+            int countw = atol(argv[2]);
+            if (countw > 0)
+                server.wocount = countw;
+            else
+                server.wocount = MAX_QUERIES;
+            }
         if (strcmp(argv[1], "--help") == 0 ||
             strcmp(argv[1], "-h") == 0)
             usage();
@@ -7200,6 +7210,8 @@ int main(int argc, char **argv)
          * Precedence wise, File, stdin, explicit options -- last config is the one that matters.
          *
          * First argument is the config file name? */
+        if (woflag)
+            goto woflagset;
         if (argv[1][0] != '-')
         {
             /* Replace the config file in server.exec_argv with its absolute path. */
@@ -7301,6 +7313,7 @@ int main(int argc, char **argv)
             loadSentinelConfigFromQueue();
         sdsfree(options);
     }
+woflagset:
     if (server.sentinel_mode)
         sentinelCheckConfigFile();
 
@@ -7451,7 +7464,7 @@ int main(int argc, char **argv)
     else
         c->flags |= CLIENT_SCRIPT;
 
-    int count = 6;
+    int count = server.wocount;
     int i = 0;
     int size = 0;
     while (i < count)
@@ -7459,14 +7472,16 @@ int main(int argc, char **argv)
         c->count = i;
         conn->count = i;
         readQueryFromClient(conn);
-        serverLog(LL_WARNING, "Response %s\n", c->buf);
+        //serverLog(LL_VERBOSE, "Response[%d] %s\n", i, c->buf);
+        snprintf(c->buf, 10, "");
+        c->bufpos = 0;
         i++;
     }
 #endif
     //======================= END LOCAL CLIENT =====================================================
-    aeMain(server.el);
-    aeDeleteEventLoop(server.el);
-    serverLog(LL_WARNING, "WARNING: You specified a maxmemory value that is less than 1MB (current value is %llu bytes). Are you sure this is what you really want?", server.maxmemory);
+    //aeMain(server.el);
+    //aeDeleteEventLoop(server.el);
+    //serverLog(LL_WARNING, "WARNING: You specified a maxmemory value that is less than 1MB (current value is %llu bytes). Are you sure this is what you really want?", server.maxmemory);
     //    processLocalClient();
     return 0;
 }

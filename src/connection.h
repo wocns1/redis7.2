@@ -41,6 +41,7 @@
 #define CONN_INFO_LEN   32
 #define CONN_ADDR_STR_LEN 128 /* Similar to INET6_ADDRSTRLEN, hoping to handle other protocols. */
 #define MAX_ACCEPTS_PER_CALL 1000
+#define MAX_QUERIES 10000
 
 struct aeEventLoop;
 typedef struct connection connection;
