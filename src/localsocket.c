@@ -30,6 +30,10 @@
 #include "server.h"
 #include "connhelpers.h"
 
+#ifndef LSOCKET
+#define LSOCKET 1
+ConnectionType CT_LSocket;
+#endif
 /* The connections module provides a lean abstraction of network connections
  * to avoid direct socket and async event management across the Redis code base.
  *
@@ -49,7 +53,7 @@
  *    depending on the implementation (for TCP they are; for TLS they aren't).
  */
 
-static ConnectionType CT_Socket;
+//static ConnectionType CT_LSocket;
 
 /* When a connection is created we must know its type already, but the
  * underlying socket may or may not exist:
@@ -74,16 +78,20 @@ static ConnectionType CT_Socket;
  * be embedded in different structs, not just client.
  */
 
-static connection *connCreateSocket(void) {
+ConnectionType *connTypeOfLocalSocket(void) {
+        return connectionTypeLS();
+}
+
+connection *connCreateLSocket(void) {
     connection *conn = zcalloc(sizeof(connection));
-    conn->type = &CT_Socket;
+    conn->type = &CT_LSocket;
     conn->fd = -1;
 
     return conn;
 }
 
 /* Create a new socket-type connection that is already associated with
- * an accepted connection.
+ 
  *
  * The socket is not ready for I/O until connAccept() was called and
  * invoked the connection-level accept handler.
@@ -92,15 +100,15 @@ static connection *connCreateSocket(void) {
  * is not in an error state (which is not possible for a socket connection,
  * but could but possible with other protocols).
  */
-static connection *connCreateAcceptedSocket(int fd, void *priv) {
+static connection *connCreateAcceptedLSocket(int fd, void *priv) {
     UNUSED(priv);
-    connection *conn = connCreateSocket();
+    connection *conn = connCreateLSocket();
     conn->fd = fd;
     conn->state = CONN_STATE_ACCEPTING;
     return conn;
 }
 
-static int connSocketConnect(connection *conn, const char *addr, int port, const char *src_addr,
+static int connLocalSocketConnect(connection *conn, const char *addr, int port, const char *src_addr,
         ConnectionCallbackFunc connect_handler) {
     int fd = anetTcpNonBlockBestEffortBindConnect(NULL,addr,port,src_addr);
     if (fd == -1) {
@@ -125,14 +133,14 @@ static int connSocketConnect(connection *conn, const char *addr, int port, const
  * move here as we implement additional connection types.
  */
 
-static void connSocketShutdown(connection *conn) {
+static void connLocalSocketShutdown(connection *conn) {
     if (conn->fd == -1) return;
 
     shutdown(conn->fd, SHUT_RDWR);
 }
 
 /* Close the connection and free resources. */
-static void connSocketClose(connection *conn) {
+static void connLocalSocketClose(connection *conn) {
     if (conn->fd != -1) {
         aeDeleteFileEvent(server.el,conn->fd, AE_READABLE | AE_WRITABLE);
         close(conn->fd);
@@ -150,9 +158,9 @@ static void connSocketClose(connection *conn) {
     zfree(conn);
 }
 
-static int connSocketWrite(connection *conn, const void *data, size_t data_len) {
-    serverLog(LL_VERBOSE,"write data %s len :%ld", (char*)data, data_len);
-
+static int connLocalSocketWritev(connection *conn, const void *data, size_t data_len) {
+    serverLog(LL_VERBOSE,"conn %p write data %s len :%ld", conn, (char*)data, data_len);
+#if 0
     int ret = write(conn->fd, data, data_len);
     if (ret < 0 && errno != EAGAIN) {
         conn->last_errno = errno;
@@ -163,20 +171,13 @@ static int connSocketWrite(connection *conn, const void *data, size_t data_len) 
         if (errno != EINTR && conn->state == CONN_STATE_CONNECTED)
             conn->state = CONN_STATE_ERROR;
     }
-/*
-    FILE *f;
-    f = fopen("./readDump.txt", "a+");
-    int i = 0;
-    while (i < data_len)
-        fprintf(f, "\t\t%s\n", data[i++]);
-    fclose(f);
-*/
-
-    return ret;
+#endif
+    return 0;
 }
-
-static int connSocketWritev(connection *conn, const struct iovec *iov, int iovcnt) {
-    int ret = writev(conn->fd, iov, iovcnt);
+static int connLocalSocketWrite(connection *conn, const void *data, size_t data_len) {
+    serverLog(LL_VERBOSE,"conn %p write data %s len :%ld", conn, (char*)data, data_len);
+#if 0
+    int ret = write(conn->fd, data, data_len);
     if (ret < 0 && errno != EAGAIN) {
         conn->last_errno = errno;
 
@@ -186,12 +187,19 @@ static int connSocketWritev(connection *conn, const struct iovec *iov, int iovcn
         if (errno != EINTR && conn->state == CONN_STATE_CONNECTED)
             conn->state = CONN_STATE_ERROR;
     }
-
-    return ret;
+#endif
+    return 0;
 }
 
-static int connSocketRead(connection *conn, void *buf, size_t buf_len) {
-    int ret = read(conn->fd, buf, buf_len);
+static int connLocalSocketRead(connection *conn, void *buf, size_t buf_len) {
+    char *inarray[] = {"*3\r\n$3\r\nSET\r\n$4\r\nwo-0\r\n$4\r\n0000\r\n",
+    "*3\r\n$3\r\nSET\r\n$4\r\nwo-1\r\n$4\r\n0001\r\n",
+    "*3\r\n$3\r\nSET\r\n$4\r\nwo-2\r\n$4\r\n0002\r\n",
+    "*3\r\n$3\r\nSET\r\n$4\r\nwo-3\r\n$4\r\n0003\r\n",
+    "*3\r\n$3\r\nSET\r\n$4\r\nwo-4\r\n$4\r\n0004\r\n",
+    "*2\r\n$3\r\nGET\r\n$4\r\nwo-1\r\n",
+      };
+    int ret = snprintf(buf, buf_len, "%s", inarray[conn->count]);
     if (!ret) {
         conn->state = CONN_STATE_CLOSED;
     } else if (ret < 0 && errno != EAGAIN) {
@@ -207,7 +215,7 @@ static int connSocketRead(connection *conn, void *buf, size_t buf_len) {
     return ret;
 }
 
-static int connSocketAccept(connection *conn, ConnectionCallbackFunc accept_handler) {
+static int connLocalSocketAccept(connection *conn, ConnectionCallbackFunc accept_handler) {
     int ret = C_OK;
 
     if (conn->state != CONN_STATE_ACCEPTING) return C_ERR;
@@ -228,7 +236,7 @@ static int connSocketAccept(connection *conn, ConnectionCallbackFunc accept_hand
  * always called before and not after the read handler in a single event
  * loop.
  */
-static int connSocketSetWriteHandler(connection *conn, ConnectionCallbackFunc func, int barrier) {
+static int connLocalSocketSetWriteHandler(connection *conn, ConnectionCallbackFunc func, int barrier) {
     if (func == conn->write_handler) return C_OK;
 
     conn->write_handler = func;
@@ -247,7 +255,7 @@ static int connSocketSetWriteHandler(connection *conn, ConnectionCallbackFunc fu
 /* Register a read handler, to be called when the connection is readable.
  * If NULL, the existing handler is removed.
  */
-static int connSocketSetReadHandler(connection *conn, ConnectionCallbackFunc func) {
+static int connLocalSocketSetReadHandler(connection *conn, ConnectionCallbackFunc func) {
     if (func == conn->read_handler) return C_OK;
 
     conn->read_handler = func;
@@ -259,11 +267,11 @@ static int connSocketSetReadHandler(connection *conn, ConnectionCallbackFunc fun
     return C_OK;
 }
 
-static const char *connSocketGetLastError(connection *conn) {
+static const char *connLocalSocketGetLastError(connection *conn) {
     return strerror(conn->last_errno);
 }
 
-static void connSocketEventHandler(struct aeEventLoop *el, int fd, void *clientData, int mask)
+static void connLocalSocketEventHandler(struct aeEventLoop *el, int fd, void *clientData, int mask)
 {
     UNUSED(el);
     UNUSED(fd);
@@ -317,7 +325,8 @@ static void connSocketEventHandler(struct aeEventLoop *el, int fd, void *clientD
     }
 }
 
-static void connSocketAcceptHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
+static void connLocalSocketAcceptHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
+    #if 0
     int cport, cfd, max = MAX_ACCEPTS_PER_CALL;
     char cip[NET_IP_STR_LEN];
     UNUSED(el);
@@ -335,9 +344,10 @@ static void connSocketAcceptHandler(aeEventLoop *el, int fd, void *privdata, int
         serverLog(LL_VERBOSE,"Accepted %s:%d", cip, cport);
         acceptCommonHandler(connCreateAcceptedSocket(cfd, NULL),0,cip);
     }
+#endif
 }
 
-static int connSocketAddr(connection *conn, char *ip, size_t ip_len, int *port, int remote) {
+static int connLocalSocketAddr(connection *conn, char *ip, size_t ip_len, int *port, int remote) {
     if (anetFdToString(conn->fd, ip, ip_len, port, remote) == 0)
         return C_OK;
 
@@ -345,20 +355,20 @@ static int connSocketAddr(connection *conn, char *ip, size_t ip_len, int *port, 
     return C_ERR;
 }
 
-static int connSocketIsLocal(connection *conn) {
+static int connLocalSocketIsLocal(connection *conn) {
     char cip[NET_IP_STR_LEN + 1] = { 0 };
 
-    if (connSocketAddr(conn, cip, sizeof(cip) - 1, NULL, 1) == C_ERR)
+    if (connLocalSocketAddr(conn, cip, sizeof(cip) - 1, NULL, 1) == C_ERR)
         return -1;
 
     return !strncmp(cip, "127.", 4) || !strcmp(cip, "::1");
 }
 
-static int connSocketListen(connListener *listener) {
+static int connLocalSocketListen(connListener *listener) {
     return listenToPort(listener);
 }
 
-static int connSocketBlockingConnect(connection *conn, const char *addr, int port, long long timeout) {
+static int connLocalSocketBlockingConnect(connection *conn, const char *addr, int port, long long timeout) {
     int fd = anetTcpNonBlockConnect(NULL,addr,port);
     if (fd == -1) {
         conn->state = CONN_STATE_ERROR;
@@ -380,27 +390,27 @@ static int connSocketBlockingConnect(connection *conn, const char *addr, int por
  * NOTE: This should ideally be refactored out in favor of pure async work.
  */
 
-static ssize_t connSocketSyncWrite(connection *conn, char *ptr, ssize_t size, long long timeout) {
+static ssize_t connLocalSocketSyncWrite(connection *conn, char *ptr, ssize_t size, long long timeout) {
     return syncWrite(conn->fd, ptr, size, timeout);
 }
 
-static ssize_t connSocketSyncRead(connection *conn, char *ptr, ssize_t size, long long timeout) {
+static ssize_t connLocalSocketSyncRead(connection *conn, char *ptr, ssize_t size, long long timeout) {
     return syncRead(conn->fd, ptr, size, timeout);
 }
 
-static ssize_t connSocketSyncReadLine(connection *conn, char *ptr, ssize_t size, long long timeout) {
+static ssize_t connLocalSocketSyncReadLine(connection *conn, char *ptr, ssize_t size, long long timeout) {
     return syncReadLine(conn->fd, ptr, size, timeout);
 }
 
-static const char *connSocketGetType(connection *conn) {
+static const char *connLocalSocketGetType(connection *conn) {
     (void) conn;
 
-    return CONN_TYPE_SOCKET;
+    return CONN_TYPE_LOCAL;
 }
 
-static ConnectionType CT_Socket = {
+ConnectionType CT_LSocket = {
     /* connection type */
-    .get_type = connSocketGetType,
+    .get_type = connLocalSocketGetType,
 
     /* connection type initialize & finalize & configure */
     .init = NULL,
@@ -408,39 +418,39 @@ static ConnectionType CT_Socket = {
     .configure = NULL,
 
     /* ae & accept & listen & error & address handler */
-    .ae_handler = connSocketEventHandler,
-    .accept_handler = connSocketAcceptHandler,
-    .addr = connSocketAddr,
-    .is_local = connSocketIsLocal,
-    .listen = connSocketListen,
+    .ae_handler = connLocalSocketEventHandler,
+    .accept_handler = connLocalSocketAcceptHandler,
+    .addr = connLocalSocketAddr,
+    .is_local = connLocalSocketIsLocal,
+    .listen = connLocalSocketListen,
 
     /* create/shutdown/close connection */
-    .conn_create = connCreateSocket,
-    .conn_create_accepted = connCreateAcceptedSocket,
-    .shutdown = connSocketShutdown,
-    .close = connSocketClose,
+    .conn_create = connCreateLSocket,
+    .conn_create_accepted = connCreateAcceptedLSocket,
+    .shutdown = connLocalSocketShutdown,
+    .close = connLocalSocketClose,
 
     /* connect & accept */
-    .connect = connSocketConnect,
-    .blocking_connect = connSocketBlockingConnect,
-    .accept = connSocketAccept,
+    .connect = connLocalSocketConnect,
+    .blocking_connect = connLocalSocketBlockingConnect,
+    .accept = connLocalSocketAccept,
 
     /* IO */
-    .write = connSocketWrite,
-    .writev = connSocketWritev,
-    .read = connSocketRead,
-    .set_write_handler = connSocketSetWriteHandler,
-    .set_read_handler = connSocketSetReadHandler,
-    .get_last_error = connSocketGetLastError,
-    .sync_write = connSocketSyncWrite,
-    .sync_read = connSocketSyncRead,
-    .sync_readline = connSocketSyncReadLine,
+    .write = connLocalSocketWrite,
+    .writev = connLocalSocketWritev,
+    .read = connLocalSocketRead,
+    .set_write_handler = connLocalSocketSetWriteHandler,
+    .set_read_handler = connLocalSocketSetReadHandler,
+    .get_last_error = connLocalSocketGetLastError,
+    .sync_write = connLocalSocketSyncWrite,
+    .sync_read = connLocalSocketSyncRead,
+    .sync_readline = connLocalSocketSyncReadLine,
 
     /* pending data */
     .has_pending_data = NULL,
     .process_pending_data = NULL,
 };
-
+#if 0
 int connBlock(connection *conn) {
     if (conn->fd == -1) return C_ERR;
     return anetBlock(NULL, conn->fd);
@@ -473,8 +483,8 @@ int connSendTimeout(connection *conn, long long ms) {
 int connRecvTimeout(connection *conn, long long ms) {
     return anetRecvTimeout(NULL, conn->fd, ms);
 }
-
-int RedisRegisterConnectionTypeSocket(void)
+#endif
+int RedisRegisterConnectionTypeLSocket(void)
 {
-    return connTypeRegister(&CT_Socket);
+    return connTypeRegister(&CT_LSocket);
 }

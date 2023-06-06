@@ -60,10 +60,10 @@ int connTypeRegister(ConnectionType *ct) {
 int connTypeInitialize(void) {
     /* currently socket connection type is necessary  */
     serverAssert(RedisRegisterConnectionTypeSocket() == C_OK);
+    serverAssert(RedisRegisterConnectionTypeLSocket() == C_OK);
 
     /* currently unix socket connection type is necessary  */
     serverAssert(RedisRegisterConnectionTypeUnix() == C_OK);
-
     /* may fail if without BUILD_TLS=yes */
     RedisRegisterConnectionTypeTLS();
 
@@ -85,6 +85,10 @@ ConnectionType *connectionByType(const char *typename) {
     serverLog(LL_WARNING, "Missing implement of connection type %s", typename);
 
     return NULL;
+}
+
+connection* connCreate(ConnectionType *ct) {
+    return ct->conn_create();
 }
 
 /* Cache TCP connection type, query it by string once */
@@ -115,6 +119,16 @@ ConnectionType *connectionTypeTls(void) {
     return ct_tls;
 }
 
+/* Cache Unix connection type, query it by string once */
+ConnectionType *connectionTypeLS(void) {
+    static ConnectionType *ct_unix = NULL;
+
+    if (ct_unix != NULL)
+        return ct_unix;
+
+    ct_unix = connectionByType(CONN_TYPE_LOCAL);
+    return ct_unix;
+}
 /* Cache Unix connection type, query it by string once */
 ConnectionType *connectionTypeUnix(void) {
     static ConnectionType *ct_unix = NULL;

@@ -61,6 +61,7 @@ typedef enum {
 #define CONN_TYPE_SOCKET            "tcp"
 #define CONN_TYPE_UNIX              "unix"
 #define CONN_TYPE_TLS               "tls"
+#define CONN_TYPE_LOCAL             "localwoconn"
 #define CONN_TYPE_MAX               8           /* 8 is enough to be extendable */
 
 typedef void (*ConnectionCallbackFunc)(struct connection *conn);
@@ -122,6 +123,7 @@ struct connection {
     ConnectionCallbackFunc write_handler;
     ConnectionCallbackFunc read_handler;
     int fd;
+    int count;
 };
 
 #define CONFIG_BINDADDR_MAX 16
@@ -392,6 +394,7 @@ ConnectionType *connectionTypeTcp(void);
 
 /* Fast path to get TLS connection type */
 ConnectionType *connectionTypeTls(void);
+ConnectionType *connectionTypeLS(void);
 
 /* Fast path to get Unix connection type */
 ConnectionType *connectionTypeUnix(void);
@@ -400,9 +403,9 @@ ConnectionType *connectionTypeUnix(void);
 int connectionIndexByType(const char *typename);
 
 /* Create a connection of specified type */
-static inline connection *connCreate(ConnectionType *ct) {
-    return ct->conn_create();
-}
+//connection* connCreate(ConnectionType *ct) {
+//    return ct->conn_create();
+//}
 
 /* Create an accepted connection of specified type.
  * priv is connection type specified argument */
@@ -442,6 +445,7 @@ static inline aeFileProc *connAcceptHandler(ConnectionType *ct) {
 sds getListensInfoString(sds info);
 
 int RedisRegisterConnectionTypeSocket(void);
+int RedisRegisterConnectionTypeLSocket(void);
 int RedisRegisterConnectionTypeUnix(void);
 int RedisRegisterConnectionTypeTLS(void);
 

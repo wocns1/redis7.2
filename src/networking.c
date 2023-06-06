@@ -128,10 +128,10 @@ client *createClient(connection *conn) {
      * in the context of a client. When commands are executed in other
      * contexts (for instance a Lua script) we need a non connected client. */
     if (conn) {
-        connEnableTcpNoDelay(conn);
-        if (server.tcpkeepalive)
-            connKeepAlive(conn,server.tcpkeepalive);
-        connSetReadHandler(conn, readQueryFromClient);
+//        connEnableTcpNoDelay(conn);
+//        if (server.tcpkeepalive)
+//            connKeepAlive(conn,server.tcpkeepalive);
+        //connSetReadHandler(conn, readQueryFromClient);
         connSetPrivateData(conn, c);
     }
     c->buf = zmalloc_usable(PROTO_REPLY_CHUNK_BYTES, &c->buf_usable_size);
@@ -2288,6 +2288,8 @@ int processMultibulkBuffer(client *c) {
         /* Read bulk length if unknown */
         if (c->bulklen == -1) {
             newline = strchr(c->querybuf+c->qb_pos,'\r');
+            
+            serverLog(LL_VERBOSE, "%s\n",newline);
             if (newline == NULL) {
                 if (sdslen(c->querybuf)-c->qb_pos > PROTO_INLINE_MAX_SIZE) {
                     addReplyError(c,
@@ -2502,6 +2504,7 @@ int processPendingCommandAndInputBuffer(client *c) {
  * return C_ERR in case the client was freed during the processing */
 int processInputBuffer(client *c) {
     /* Keep processing while there is something in the input buffer */
+    int len = sdslen(c->querybuf);
     while(c->qb_pos < sdslen(c->querybuf)) {
         /* Immediately abort if the client is in the middle of something. */
         if (c->flags & CLIENT_BLOCKED) break;
@@ -2597,6 +2600,7 @@ int processInputBuffer(client *c) {
 }
 
 void readQueryFromClient(connection *conn) {
+    //conn->type = &CT_LSocket;
     client *c = connGetPrivateData(conn);
     int nread, big_arg = 0;
     size_t qblen, readlen;
@@ -2667,11 +2671,14 @@ void readQueryFromClient(connection *conn) {
         freeClientAsync(c);
         goto done;
     }
-
+/*
     FILE *f;
     f = fopen("./readDump.txt", "a+");
     fprintf(f, "%s\n", c->querybuf);
     fclose(f);
+*/
+    serverLog(LL_VERBOSE, "Reading from client: %s", getObjectTypeName(c->name));
+    serverLog(LL_VERBOSE, "buffer read is %s", c->querybuf);
     sdsIncrLen(c->querybuf,nread);
     qblen = sdslen(c->querybuf);
     if (c->querybuf_peak < qblen) c->querybuf_peak = qblen;

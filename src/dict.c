@@ -424,6 +424,9 @@ int dictAdd(dict *d, void *key, void *val)
 
     if (!entry) return DICT_ERR;
     if (!d->type->no_value) dictSetVal(d, entry, val);
+
+//    printf("key %s value %s\n", (char *)(key), (char *)val);
+
     return DICT_OK;
 }
 
@@ -748,10 +751,13 @@ void dictSetKey(dict *d, dictEntry* de, void *key) {
         de->key = d->type->keyDup(d, key);
     else
         de->key = key;
+    printf("key %s\n", (char*)(de->key));
 }
 
 void dictSetVal(dict *d, dictEntry *de, void *val) {
     assert(entryHasValue(de));
+    if((strncmp((char*)(de->key), "memtier", 7)) == 0)
+        printf("key = %s\t val %s\n", (char*)de->key, (char*)val);
     de->v.val = d->type->valDup ? d->type->valDup(d, val) : val;
 }
 

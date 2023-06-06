@@ -38,6 +38,7 @@
 #include "functions.h"
 #include "hdr_histogram.h"
 #include "syscheck.h"
+#include "connection.h"
 
 #include <time.h>
 #include <signal.h>
@@ -83,6 +84,7 @@ double R_Zero, R_PosInf, R_NegInf, R_Nan;
 
 /* Global vars */
 struct redisServer server; /* Server global state */
+extern connection *connCreateLSocket(void);
 
 /*============================ Internal prototypes ========================== */
 
@@ -7043,46 +7045,61 @@ redisTestProc *getTestProcByName(const char *name) {
 }
 #endif
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     struct timeval tv;
     int j;
     char config_from_stdin = 0;
 
 #ifdef REDIS_TEST
-    if (argc >= 3 && !strcasecmp(argv[1], "test")) {
+    if (argc >= 3 && !strcasecmp(argv[1], "test"))
+    {
         int flags = 0;
-        for (j = 3; j < argc; j++) {
+        for (j = 3; j < argc; j++)
+        {
             char *arg = argv[j];
-            if (!strcasecmp(arg, "--accurate")) flags |= REDIS_TEST_ACCURATE;
-            else if (!strcasecmp(arg, "--large-memory")) flags |= REDIS_TEST_LARGE_MEMORY;
-            else if (!strcasecmp(arg, "--valgrind")) flags |= REDIS_TEST_VALGRIND;
+            if (!strcasecmp(arg, "--accurate"))
+                flags |= REDIS_TEST_ACCURATE;
+            else if (!strcasecmp(arg, "--large-memory"))
+                flags |= REDIS_TEST_LARGE_MEMORY;
+            else if (!strcasecmp(arg, "--valgrind"))
+                flags |= REDIS_TEST_VALGRIND;
         }
 
-        if (!strcasecmp(argv[2], "all")) {
-            int numtests = sizeof(redisTests)/sizeof(struct redisTest);
-            for (j = 0; j < numtests; j++) {
-                redisTests[j].failed = (redisTests[j].proc(argc,argv,flags) != 0);
+        if (!strcasecmp(argv[2], "all"))
+        {
+            int numtests = sizeof(redisTests) / sizeof(struct redisTest);
+            for (j = 0; j < numtests; j++)
+            {
+                redisTests[j].failed = (redisTests[j].proc(argc, argv, flags) != 0);
             }
 
             /* Report tests result */
             int failed_num = 0;
-            for (j = 0; j < numtests; j++) {
-                if (redisTests[j].failed) {
+            for (j = 0; j < numtests; j++)
+            {
+                if (redisTests[j].failed)
+                {
                     failed_num++;
                     printf("[failed] Test - %s\n", redisTests[j].name);
-                } else {
+                }
+                else
+                {
                     printf("[ok] Test - %s\n", redisTests[j].name);
                 }
             }
 
             printf("%d tests, %d passed, %d failed\n", numtests,
-                   numtests-failed_num, failed_num);
+                   numtests - failed_num, failed_num);
 
             return failed_num == 0 ? 0 : 1;
-        } else {
+        }
+        else
+        {
             redisTestProc *proc = getTestProcByName(argv[2]);
-            if (!proc) return -1; /* test not found */
-            return proc(argc,argv,flags);
+            if (!proc)
+                return -1; /* test not found */
+            return proc(argc, argv, flags);
         }
 
         return 0;
@@ -7098,10 +7115,10 @@ int main(int argc, char **argv) {
 
     /* To achieve entropy, in case of containers, their time() and getpid() can
      * be the same. But value of tv_usec is fast enough to make the difference */
-    gettimeofday(&tv,NULL);
-    srand(time(NULL)^getpid()^tv.tv_usec);
-    srandom(time(NULL)^getpid()^tv.tv_usec);
-    init_genrand64(((long long) tv.tv_sec * 1000000 + tv.tv_usec) ^ getpid());
+    gettimeofday(&tv, NULL);
+    srand(time(NULL) ^ getpid() ^ tv.tv_usec);
+    srandom(time(NULL) ^ getpid() ^ tv.tv_usec);
+    init_genrand64(((long long)tv.tv_sec * 1000000 + tv.tv_usec) ^ getpid());
     crc64_init();
 
     /* Store umask value. Because umask(2) only offers a set-and-get API we have
@@ -7111,12 +7128,13 @@ int main(int argc, char **argv) {
     umask(server.umask = umask(0777));
 
     uint8_t hashseed[16];
-    getRandomBytes(hashseed,sizeof(hashseed));
+    getRandomBytes(hashseed, sizeof(hashseed));
     dictSetHashFunctionSeed(hashseed);
 
     char *exec_name = strrchr(argv[0], '/');
-    if (exec_name == NULL) exec_name = argv[0];
-    server.sentinel_mode = checkForSentinelMode(argc,argv, exec_name);
+    if (exec_name == NULL)
+        exec_name = argv[0];
+    server.sentinel_mode = checkForSentinelMode(argc, argv, exec_name);
     initServerConfig();
     ACLInit(); /* The ACL subsystem must be initialized ASAP because the
                   basic networking code and client creation depends on it. */
@@ -7126,14 +7144,16 @@ int main(int argc, char **argv) {
     /* Store the executable path and arguments in a safe place in order
      * to be able to restart the server later. */
     server.executable = getAbsolutePath(argv[0]);
-    server.exec_argv = zmalloc(sizeof(char*)*(argc+1));
+    server.exec_argv = zmalloc(sizeof(char *) * (argc + 1));
     server.exec_argv[argc] = NULL;
-    for (j = 0; j < argc; j++) server.exec_argv[j] = zstrdup(argv[j]);
+    for (j = 0; j < argc; j++)
+        server.exec_argv[j] = zstrdup(argv[j]);
 
     /* We need to init sentinel right now as parsing the configuration file
      * in sentinel mode will have the effect of populating the sentinel
      * data structures with master nodes to monitor. */
-    if (server.sentinel_mode) {
+    if (server.sentinel_mode)
+    {
         initSentinelConfig();
         initSentinel();
     }
@@ -7141,37 +7161,47 @@ int main(int argc, char **argv) {
     /* Check if we need to start in redis-check-rdb/aof mode. We just execute
      * the program main. However the program is part of the Redis executable
      * so that we can easily execute an RDB check on loading errors. */
-    if (strstr(exec_name,"redis-check-rdb") != NULL)
-        redis_check_rdb_main(argc,argv,NULL);
-    else if (strstr(exec_name,"redis-check-aof") != NULL)
-        redis_check_aof_main(argc,argv);
+    if (strstr(exec_name, "redis-check-rdb") != NULL)
+        redis_check_rdb_main(argc, argv, NULL);
+    else if (strstr(exec_name, "redis-check-aof") != NULL)
+        redis_check_aof_main(argc, argv);
 
-    if (argc >= 2) {
+    if (argc >= 2)
+    {
         j = 1; /* First option to parse in argv[] */
         sds options = sdsempty();
 
         /* Handle special options --help and --version */
         if (strcmp(argv[1], "-v") == 0 ||
-            strcmp(argv[1], "--version") == 0) version();
+            strcmp(argv[1], "--version") == 0)
+            version();
         if (strcmp(argv[1], "--help") == 0 ||
-            strcmp(argv[1], "-h") == 0) usage();
-        if (strcmp(argv[1], "--test-memory") == 0) {
-            if (argc == 3) {
-                memtest(atoi(argv[2]),50);
+            strcmp(argv[1], "-h") == 0)
+            usage();
+        if (strcmp(argv[1], "--test-memory") == 0)
+        {
+            if (argc == 3)
+            {
+                memtest(atoi(argv[2]), 50);
                 exit(0);
-            } else {
-                fprintf(stderr,"Please specify the amount of memory to test in megabytes.\n");
-                fprintf(stderr,"Example: ./redis-server --test-memory 4096\n\n");
+            }
+            else
+            {
+                fprintf(stderr, "Please specify the amount of memory to test in megabytes.\n");
+                fprintf(stderr, "Example: ./redis-server --test-memory 4096\n\n");
                 exit(1);
             }
-        } if (strcmp(argv[1], "--check-system") == 0) {
+        }
+        if (strcmp(argv[1], "--check-system") == 0)
+        {
             exit(syscheck() ? 0 : 1);
         }
         /* Parse command line options
          * Precedence wise, File, stdin, explicit options -- last config is the one that matters.
          *
          * First argument is the config file name? */
-        if (argv[1][0] != '-') {
+        if (argv[1][0] != '-')
+        {
             /* Replace the config file in server.exec_argv with its absolute path. */
             server.configfile = getAbsolutePath(argv[1]);
             zfree(server.exec_argv[1]);
@@ -7181,9 +7211,11 @@ int main(int argc, char **argv) {
         sds *argv_tmp;
         int argc_tmp;
         int handled_last_config_arg = 1;
-        while(j < argc) {
+        while (j < argc)
+        {
             /* Either first or last argument - Should we read config from stdin? */
-            if (argv[j][0] == '-' && argv[j][1] == '\0' && (j == 1 || j == argc-1)) {
+            if (argv[j][0] == '-' && argv[j][1] == '\0' && (j == 1 || j == argc - 1))
+            {
                 config_from_stdin = 1;
             }
             /* All the other options are parsed and conceptually appended to the
@@ -7191,19 +7223,22 @@ int main(int argc, char **argv) {
              * string "port 6380\n" to be parsed after the actual config file
              * and stdin input are parsed (if they exist).
              * Only consider that if the last config has at least one argument. */
-            else if (handled_last_config_arg && argv[j][0] == '-' && argv[j][1] == '-') {
+            else if (handled_last_config_arg && argv[j][0] == '-' && argv[j][1] == '-')
+            {
                 /* Option name */
-                if (sdslen(options)) options = sdscat(options,"\n");
+                if (sdslen(options))
+                    options = sdscat(options, "\n");
                 /* argv[j]+2 for removing the preceding `--` */
-                options = sdscat(options,argv[j]+2);
-                options = sdscat(options," ");
+                options = sdscat(options, argv[j] + 2);
+                options = sdscat(options, " ");
 
                 argv_tmp = sdssplitargs(argv[j], &argc_tmp);
-                if (argc_tmp == 1) {
+                if (argc_tmp == 1)
+                {
                     /* Means that we only have one option name, like --port or "--port " */
                     handled_last_config_arg = 0;
 
-                    if ((j != argc-1) && argv[j+1][0] == '-' && argv[j+1][1] == '-' &&
+                    if ((j != argc - 1) && argv[j + 1][0] == '-' && argv[j + 1][1] == '-' &&
                         !strcasecmp(argv[j], "--save"))
                     {
                         /* Special case: handle some things like `--save --config value`.
@@ -7216,14 +7251,15 @@ int main(int argc, char **argv) {
                         options = sdscat(options, "\"\"");
                         handled_last_config_arg = 1;
                     }
-                    else if ((j == argc-1) && !strcasecmp(argv[j], "--save")) {
+                    else if ((j == argc - 1) && !strcasecmp(argv[j], "--save"))
+                    {
                         /* Special case: when empty save is the last argument.
                          * In this case, we append an empty "" config value to the options,
                          * so it will become `--save ""` and will follow the same reset thing. */
                         options = sdscat(options, "\"\"");
                     }
-                    else if ((j != argc-1) && argv[j+1][0] == '-' && argv[j+1][1] == '-' &&
-                        !strcasecmp(argv[j], "--sentinel"))
+                    else if ((j != argc - 1) && argv[j + 1][0] == '-' && argv[j + 1][1] == '-' &&
+                             !strcasecmp(argv[j], "--sentinel"))
                     {
                         /* Special case: handle some things like `--sentinel --config value`.
                          * It is a pseudo config option with no value. In this case, if next
@@ -7233,54 +7269,66 @@ int main(int argc, char **argv) {
                         options = sdscat(options, "");
                         handled_last_config_arg = 1;
                     }
-                    else if ((j == argc-1) && !strcasecmp(argv[j], "--sentinel")) {
+                    else if ((j == argc - 1) && !strcasecmp(argv[j], "--sentinel"))
+                    {
                         /* Special case: when --sentinel is the last argument.
                          * It is a pseudo config option with no value. In this case, do nothing.
                          * We are doing it to be compatible with pre 7.0 behavior (which we
                          * break it in #10660, 7.0.1). */
                         options = sdscat(options, "");
                     }
-                } else {
+                }
+                else
+                {
                     /* Means that we are passing both config name and it's value in the same arg,
                      * like "--port 6380", so we need to reset handled_last_config_arg flag. */
                     handled_last_config_arg = 1;
                 }
                 sdsfreesplitres(argv_tmp, argc_tmp);
-            } else {
+            }
+            else
+            {
                 /* Option argument */
-                options = sdscatrepr(options,argv[j],strlen(argv[j]));
-                options = sdscat(options," ");
+                options = sdscatrepr(options, argv[j], strlen(argv[j]));
+                options = sdscat(options, " ");
                 handled_last_config_arg = 1;
             }
             j++;
         }
 
         loadServerConfig(server.configfile, config_from_stdin, options);
-        if (server.sentinel_mode) loadSentinelConfigFromQueue();
+        if (server.sentinel_mode)
+            loadSentinelConfigFromQueue();
         sdsfree(options);
     }
-    if (server.sentinel_mode) sentinelCheckConfigFile();
+    if (server.sentinel_mode)
+        sentinelCheckConfigFile();
 
-    /* Do system checks */
+        /* Do system checks */
 #ifdef __linux__
     linuxMemoryWarnings();
     sds err_msg = NULL;
-    if (checkXenClocksource(&err_msg) < 0) {
+    if (checkXenClocksource(&err_msg) < 0)
+    {
         serverLog(LL_WARNING, "WARNING %s", err_msg);
         sdsfree(err_msg);
     }
-#if defined (__arm64__)
+#if defined(__arm64__)
     int ret;
-    if ((ret = checkLinuxMadvFreeForkBug(&err_msg)) <= 0) {
-        if (ret < 0) {
+    if ((ret = checkLinuxMadvFreeForkBug(&err_msg)) <= 0)
+    {
+        if (ret < 0)
+        {
             serverLog(LL_WARNING, "WARNING %s", err_msg);
             sdsfree(err_msg);
-        } else
+        }
+        else
             serverLog(LL_WARNING, "Failed to test the kernel for a bug that could lead to data corruption during background save. "
                                   "Your system could be affected, please report this error.");
-        if (!checkIgnoreWarning("ARM64-COW-BUG")) {
-            serverLog(LL_WARNING,"Redis will now exit to prevent data corruption. "
-                                 "Note that it is possible to suppress this warning by setting the following config: ignore-warnings ARM64-COW-BUG");
+        if (!checkIgnoreWarning("ARM64-COW-BUG"))
+        {
+            serverLog(LL_WARNING, "Redis will now exit to prevent data corruption. "
+                                  "Note that it is possible to suppress this warning by setting the following config: ignore-warnings ARM64-COW-BUG");
             exit(1);
         }
     }
@@ -7290,87 +7338,136 @@ int main(int argc, char **argv) {
     /* Daemonize if needed */
     server.supervised = redisIsSupervised(server.supervised_mode);
     int background = server.daemonize && !server.supervised;
-    if (background) daemonize();
+    if (background)
+        daemonize();
 
     serverLog(LL_NOTICE, "oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo");
     serverLog(LL_NOTICE,
-        "Redis version=%s, bits=%d, commit=%s, modified=%d, pid=%d, just started",
-            REDIS_VERSION,
-            (sizeof(long) == 8) ? 64 : 32,
-            redisGitSHA1(),
-            strtol(redisGitDirty(),NULL,10) > 0,
-            (int)getpid());
+              "Redis version=%s, bits=%d, commit=%s, modified=%d, pid=%d, just started",
+              REDIS_VERSION,
+              (sizeof(long) == 8) ? 64 : 32,
+              redisGitSHA1(),
+              strtol(redisGitDirty(), NULL, 10) > 0,
+              (int)getpid());
 
-    if (argc == 1) {
+    if (argc == 1)
+    {
         serverLog(LL_WARNING, "Warning: no config file specified, using the default config. In order to specify a config file use %s /path/to/redis.conf", argv[0]);
-    } else {
+    }
+    else
+    {
         serverLog(LL_NOTICE, "Configuration loaded");
     }
 
     initServer();
-    if (background || server.pidfile) createPidFile();
-    if (server.set_proc_title) redisSetProcTitle(NULL);
+    if (background || server.pidfile)
+        createPidFile();
+    if (server.set_proc_title)
+        redisSetProcTitle(NULL);
     redisAsciiArt();
     checkTcpBacklogSettings();
-    if (server.cluster_enabled) {
+    if (server.cluster_enabled)
+    {
         clusterInit();
     }
-    if (!server.sentinel_mode) {
+    if (!server.sentinel_mode)
+    {
         moduleInitModulesSystemLast();
         moduleLoadFromQueue();
     }
     ACLLoadUsersAtStartup();
     initListeners();
-    if (server.cluster_enabled) {
+    if (server.cluster_enabled)
+    {
         clusterInitListeners();
     }
     InitServerLast();
 
-    if (!server.sentinel_mode) {
+    if (!server.sentinel_mode)
+    {
         /* Things not needed when running in Sentinel mode. */
-        serverLog(LL_NOTICE,"Server initialized");
+        serverLog(LL_NOTICE, "Server initialized");
         aofLoadManifestFromDisk();
         loadDataFromDisk();
         aofOpenIfNeededOnServerStart();
         aofDelHistoryFiles();
-        if (server.cluster_enabled) {
+        if (server.cluster_enabled)
+        {
             serverAssert(verifyClusterConfigWithData() == C_OK);
         }
 
-        for (j = 0; j < CONN_TYPE_MAX; j++) {
+        for (j = 0; j < CONN_TYPE_MAX; j++)
+        {
             connListener *listener = &server.listeners[j];
             if (listener->ct == NULL)
                 continue;
 
-            serverLog(LL_NOTICE,"Ready to accept connections %s", listener->ct->get_type(NULL));
+            serverLog(LL_NOTICE, "Ready to accept connections %s", listener->ct->get_type(NULL));
         }
 
-        if (server.supervised_mode == SUPERVISED_SYSTEMD) {
-            if (!server.masterhost) {
+        if (server.supervised_mode == SUPERVISED_SYSTEMD)
+        {
+            if (!server.masterhost)
+            {
                 redisCommunicateSystemd("STATUS=Ready to accept connections\n");
-            } else {
+            }
+            else
+            {
                 redisCommunicateSystemd("STATUS=Ready to accept connections in read-only mode. Waiting for MASTER <-> REPLICA sync\n");
             }
             redisCommunicateSystemd("READY=1\n");
         }
-    } else {
+    }
+    else
+    {
         sentinelIsRunning();
-        if (server.supervised_mode == SUPERVISED_SYSTEMD) {
+        if (server.supervised_mode == SUPERVISED_SYSTEMD)
+        {
             redisCommunicateSystemd("STATUS=Ready to accept connections\n");
             redisCommunicateSystemd("READY=1\n");
         }
     }
 
     /* Warning the user about suspicious maxmemory setting. */
-    if (server.maxmemory > 0 && server.maxmemory < 1024*1024) {
-        serverLog(LL_WARNING,"WARNING: You specified a maxmemory value that is less than 1MB (current value is %llu bytes). Are you sure this is what you really want?", server.maxmemory);
+    if (server.maxmemory > 0 && server.maxmemory < 1024 * 1024)
+    {
+        serverLog(LL_WARNING, "WARNING: You specified a maxmemory value that is less than 1MB (current value is %llu bytes). Are you sure this is what you really want?", server.maxmemory);
     }
 
     redisSetCpuAffinity(server.server_cpulist);
     setOOMScoreAdj(-1);
+    //=======================LOCAL CLIENT=====================================================
+#if 1
+    //connection *conn = connCreateLSocket();
+    connection *conn = connCreateLSocket();
+    //connection *conn = connCreate(connTypeOfLocalSocket());
+    //connection *conn = zcalloc(sizeof(connection));
+    //conn->type = &CT_LSocket;
+    //conn->fd = -1;
+    client *c = createClient(conn);
+    connSetPrivateData(conn, c);
+    if (!c)
+        serverLog(LL_WARNING, "LocalClient: Could not create client\n");
+    else
+        c->flags |= CLIENT_SCRIPT;
 
+    int count = 6;
+    int i = 0;
+    int size = 0;
+    while (i < count)
+    {
+        c->count = i;
+        conn->count = i;
+        readQueryFromClient(conn);
+        serverLog(LL_WARNING, "Response %s\n", c->buf);
+        i++;
+    }
+#endif
+    //======================= END LOCAL CLIENT =====================================================
     aeMain(server.el);
     aeDeleteEventLoop(server.el);
+    serverLog(LL_WARNING, "WARNING: You specified a maxmemory value that is less than 1MB (current value is %llu bytes). Are you sure this is what you really want?", server.maxmemory);
+    //    processLocalClient();
     return 0;
 }
 
