@@ -1548,7 +1548,7 @@ int rdbSave(int req, char *filename, rdbSaveInfo *rsi, int rdbflags) {
         return C_ERR;
     }
 
-    serverLog(LL_NOTICE,"DB saved on disk");
+    //serverLog(LL_NOTICE,"DB saved on disk");
     server.dirty = 0;
     server.lastsave = time(NULL);
     server.lastbgsave_status = C_OK;

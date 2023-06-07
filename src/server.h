@@ -2045,6 +2045,7 @@ struct redisServer {
     /* Local environment */
     char *locale_collate;
     int wocount;
+    int op;
 };
 
 #define MAX_KEYS_BUFFER 256

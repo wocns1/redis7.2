@@ -124,7 +124,7 @@ struct connection {
     ConnectionCallbackFunc write_handler;
     ConnectionCallbackFunc read_handler;
     int fd;
-    int count;
+    unsigned long long count;
 };
 
 #define CONFIG_BINDADDR_MAX 16

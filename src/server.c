@@ -7176,10 +7176,18 @@ int main(int argc, char **argv)
         if (strcmp(argv[1], "-v") == 0 ||
             strcmp(argv[1], "--version") == 0)
             version();
-        if (strcmp(argv[1], "-wcnt") == 0 ||
-            strcmp(argv[1], "--wocount") == 0) {
+        if (strcmp(argv[1], "-op") == 0) {
             woflag = 1;
-            int countw = atol(argv[2]);
+            int op = atoi(argv[2]);
+            if (op < 0 || op > 1)
+                op = 0; //write by default
+            server.op = op;
+        }
+        server.wocount = 0;
+        if (strcmp(argv[3], "-wcnt") == 0 ||
+            strcmp(argv[3], "--wocount") == 0) {
+            woflag = 1;
+            unsigned long long countw = atoll(argv[4]);
             if (countw > 0)
                 server.wocount = countw;
             else
@@ -7465,21 +7473,27 @@ woflagset:
         c->flags |= CLIENT_SCRIPT;
 
     int count = server.wocount;
+    if (!server.wocount)
+        server.wocount = MAX_QUERIES;
     int i = 0;
     int size = 0;
+    //if (server.op == 0)
+    //    flushallCommand(c);
     while (i < count)
     {
         c->count = i;
         conn->count = i;
-        readQueryFromClient(conn);
-        //serverLog(LL_VERBOSE, "Response[%d] %s\n", i, c->buf);
         snprintf(c->buf, 10, "");
         c->bufpos = 0;
+        readQueryFromClient(conn);
+        serverLog(LL_VERBOSE, "Response[%d] %s\n", i, c->buf);
         i++;
     }
+    if (server.op == 0)
+        saveCommand(c);
 #endif
     //======================= END LOCAL CLIENT =====================================================
-    //aeMain(server.el);
+   // aeMain(server.el);
     //aeDeleteEventLoop(server.el);
     //serverLog(LL_WARNING, "WARNING: You specified a maxmemory value that is less than 1MB (current value is %llu bytes). Are you sure this is what you really want?", server.maxmemory);
     //    processLocalClient();

@@ -193,11 +193,11 @@ static int connLocalSocketWrite(connection *conn, const void *data, size_t data_
 
 static int connLocalSocketRead(connection *conn, void *buf, size_t buf_len) {
     int ret = 0;
-    if (conn->count <(MAX_QUERIES/2)) {
-        ret = snprintf(buf, buf_len, "*3\r\n$3\r\nSET\r\n$7\r\nwo-%04d\r\n$4\r\n%04d\r\n", conn->count, conn->count);
+    if (server.op == 0) {
+        ret = snprintf(buf, buf_len, "*3\r\n$3\r\nSET\r\n$12\r\nwo-%09llu\r\n$32\r\n%032llu\r\n", conn->count, conn->count);
     }
     else {
-        ret = snprintf(buf, buf_len, "*2\r\n$3\r\nGET\r\n$7\r\nwo-%04d\r\n", (conn->count - (MAX_QUERIES/2)));
+        ret = snprintf(buf, buf_len, "*2\r\n$3\r\nGET\r\n$12\r\nwo-%09llu\r\n", (conn->count));
     }
     //serverLog(LL_VERBOSE, "buf %s\n", buf);
     /*
