@@ -33,8 +33,8 @@
 #include "endianconv.h"
 
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
+//#include <sys/socket.h>
+//#include <arpa/inet.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -1891,6 +1891,8 @@ int clusterHandshakeInProgress(char *ip, int port, int cport) {
  * EAGAIN - There is already a handshake in progress for this address.
  * EINVAL - IP or port are not valid. */
 int clusterStartHandshake(char *ip, int port, int cport) {
+    return 0;
+    #if 0
     clusterNode *n;
     char norm_ip[NET_IP_STR_LEN];
     struct sockaddr_storage sa;
@@ -1941,6 +1943,7 @@ int clusterStartHandshake(char *ip, int port, int cport) {
     n->cport = cport;
     clusterAddNode(n);
     return 1;
+#endif
 }
 
 /* Process the gossip section of PING or PONG packets.

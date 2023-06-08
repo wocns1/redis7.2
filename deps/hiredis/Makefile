@@ -3,7 +3,7 @@
 # Copyright (C) 2010-2011 Pieter Noordhuis <pcnoordhuis at gmail dot com>
 # This file is released under the BSD license, see the COPYING file
 
-OBJ=alloc.o net.o hiredis.o sds.o async.o read.o sockcompat.o
+OBJ=alloc.o hiredis.o sds.o async.o read.o sockcompat.o
 EXAMPLES=hiredis-example hiredis-example-libevent hiredis-example-libev hiredis-example-glib hiredis-example-push
 TESTS=hiredis-test
 LIBNAME=libhiredis

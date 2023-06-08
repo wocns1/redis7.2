@@ -32,7 +32,7 @@
 #include "cluster.h"
 #include "script.h"
 #include "fpconv_dtoa.h"
-#include <sys/socket.h>
+//#include <sys/socket.h>
 #include <sys/uio.h>
 #include <math.h>
 #include <ctype.h>

@@ -47,7 +47,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
-#include <arpa/inet.h>
+//#include <arpa/inet.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/file.h>
@@ -60,7 +60,7 @@
 #include <math.h>
 #include <sys/utsname.h>
 #include <locale.h>
-#include <sys/socket.h>
+//#include <sys/socket.h>
 
 #ifdef __linux__
 #include <sys/mman.h>
@@ -7397,7 +7397,7 @@ woflagset:
         moduleLoadFromQueue();
     }
     ACLLoadUsersAtStartup();
-    initListeners();
+    //initListeners();
     if (server.cluster_enabled)
     {
         clusterInitListeners();

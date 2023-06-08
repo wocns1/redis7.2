@@ -51,8 +51,8 @@ static redisContextFuncs redisContextDefaultFuncs = {
     .free_privctx = NULL,
     .async_read = redisAsyncRead,
     .async_write = redisAsyncWrite,
-    .read = redisNetRead,
-    .write = redisNetWrite
+    .read = NULL,
+    .write = NULL
 };
 
 static redisReply *createReplyObject(int type);
@@ -719,7 +719,7 @@ static redisContext *redisContextInit(void) {
 void redisFree(redisContext *c) {
     if (c == NULL)
         return;
-    redisNetClose(c);
+    //redisNetClose(c);
 
     hi_sdsfree(c->obuf);
     redisReaderFree(c->reader);
@@ -756,7 +756,7 @@ int redisReconnect(redisContext *c) {
         c->privctx = NULL;
     }
 
-    redisNetClose(c);
+    //redisNetClose(c);
 
     hi_sdsfree(c->obuf);
     redisReaderFree(c->reader);
@@ -771,10 +771,10 @@ int redisReconnect(redisContext *c) {
 
     int ret = REDIS_ERR;
     if (c->connection_type == REDIS_CONN_TCP) {
-        ret = redisContextConnectBindTcp(c, c->tcp.host, c->tcp.port,
-               c->connect_timeout, c->tcp.source_addr);
+      //  ret = redisContextConnectBindTcp(c, c->tcp.host, c->tcp.port,
+        //       c->connect_timeout, c->tcp.source_addr);
     } else if (c->connection_type == REDIS_CONN_UNIX) {
-        ret = redisContextConnectUnix(c, c->unix_sock.path, c->connect_timeout);
+        //ret = redisContextConnectUnix(c, c->unix_sock.path, c->connect_timeout);
     } else {
         /* Something bad happened here and shouldn't have. There isn't
            enough information in the context to reconnect. */
@@ -783,7 +783,7 @@ int redisReconnect(redisContext *c) {
     }
 
     if (c->command_timeout != NULL && (c->flags & REDIS_BLOCK) && c->fd != REDIS_INVALID_FD) {
-        redisContextSetTimeout(c, *c->command_timeout);
+        //redisContextSetTimeout(c, *c->command_timeout);
     }
 
     return ret;
@@ -791,6 +791,7 @@ int redisReconnect(redisContext *c) {
 
 redisContext *redisConnectWithOptions(const redisOptions *options) {
     redisContext *c = redisContextInit();
+    #if 0
     if (c == NULL) {
         return NULL;
     }
@@ -817,31 +818,26 @@ redisContext *redisConnectWithOptions(const redisOptions *options) {
     c->privdata = options->privdata;
     c->free_privdata = options->free_privdata;
 
-    if (redisContextUpdateConnectTimeout(c, options->connect_timeout) != REDIS_OK ||
-        redisContextUpdateCommandTimeout(c, options->command_timeout) != REDIS_OK) {
-        __redisSetError(c, REDIS_ERR_OOM, "Out of memory");
-        return c;
-    }
 
     if (options->type == REDIS_CONN_TCP) {
-        redisContextConnectBindTcp(c, options->endpoint.tcp.ip,
-                                   options->endpoint.tcp.port, options->connect_timeout,
-                                   options->endpoint.tcp.source_addr);
+//        redisContextConnectBindTcp(c, options->endpoint.tcp.ip,
+  //                                 options->endpoint.tcp.port, options->connect_timeout,
+    //                               options->endpoint.tcp.source_addr);
     } else if (options->type == REDIS_CONN_UNIX) {
-        redisContextConnectUnix(c, options->endpoint.unix_socket,
-                                options->connect_timeout);
+     //   redisContextConnectUnix(c, options->endpoint.unix_socket,
+       //                         options->connect_timeout);
     } else if (options->type == REDIS_CONN_USERFD) {
         c->fd = options->endpoint.fd;
         c->flags |= REDIS_CONNECTED;
     } else {
-        redisFree(c);
+        //redisFree(c);
         return NULL;
     }
 
     if (options->command_timeout != NULL && (c->flags & REDIS_BLOCK) && c->fd != REDIS_INVALID_FD) {
         redisContextSetTimeout(c, *options->command_timeout);
     }
-
+#endif
     return c;
 }
 
@@ -915,15 +911,11 @@ redisContext *redisConnectFd(redisFD fd) {
 
 /* Set read/write timeout on a blocking socket. */
 int redisSetTimeout(redisContext *c, const struct timeval tv) {
-    if (c->flags & REDIS_BLOCK)
-        return redisContextSetTimeout(c,tv);
     return REDIS_ERR;
 }
 
 /* Enable connection KeepAlive. */
 int redisEnableKeepAlive(redisContext *c) {
-    if (redisKeepAlive(c, REDIS_KEEPALIVE_INTERVAL) != REDIS_OK)
-        return REDIS_ERR;
     return REDIS_OK;
 }
 

@@ -609,6 +609,8 @@ static void __redisAsyncHandleConnectFailure(redisAsyncContext *ac) {
  * write event fires. When connecting was not successful, the connect callback
  * is called with a REDIS_ERR status and the context is free'd. */
 static int __redisAsyncHandleConnect(redisAsyncContext *ac) {
+    return 0;
+    #if 0
     int completed = 0;
     redisContext *c = &(ac->c);
 
@@ -632,6 +634,7 @@ static int __redisAsyncHandleConnect(redisAsyncContext *ac) {
     } else {
         return REDIS_OK;
     }
+    #endif
 }
 
 void redisAsyncRead(redisAsyncContext *ac) {

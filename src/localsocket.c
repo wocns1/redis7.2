@@ -110,6 +110,8 @@ static connection *connCreateAcceptedLSocket(int fd, void *priv) {
 
 static int connLocalSocketConnect(connection *conn, const char *addr, int port, const char *src_addr,
         ConnectionCallbackFunc connect_handler) {
+    return 0;
+    /*
     int fd = anetTcpNonBlockBestEffortBindConnect(NULL,addr,port,src_addr);
     if (fd == -1) {
         conn->state = CONN_STATE_ERROR;
@@ -125,6 +127,7 @@ static int connLocalSocketConnect(connection *conn, const char *addr, int port, 
             conn->type->ae_handler, conn);
 
     return C_OK;
+*/
 }
 
 /* ------ Pure socket connections ------- */
@@ -134,13 +137,17 @@ static int connLocalSocketConnect(connection *conn, const char *addr, int port, 
  */
 
 static void connLocalSocketShutdown(connection *conn) {
+    return;
     if (conn->fd == -1) return;
 
-    shutdown(conn->fd, SHUT_RDWR);
+    //shutdown(conn->fd, SHUT_RDWR);
 }
 
 /* Close the connection and free resources. */
-static void connLocalSocketClose(connection *conn) {
+static void connLocalSocketClose(connection *conn)
+{
+    return;
+#if 0 
     if (conn->fd != -1) {
         aeDeleteFileEvent(server.el,conn->fd, AE_READABLE | AE_WRITABLE);
         close(conn->fd);
@@ -150,12 +157,14 @@ static void connLocalSocketClose(connection *conn) {
     /* If called from within a handler, schedule the close but
      * keep the connection until the handler returns.
      */
-    if (connHasRefs(conn)) {
+    if (connHasRefs(conn))
+    {
         conn->flags |= CONN_FLAG_CLOSE_SCHEDULED;
         return;
     }
 
     zfree(conn);
+#endif
 }
 
 static int connLocalSocketWritev(connection *conn, const void *data, size_t data_len) {
@@ -460,40 +469,46 @@ ConnectionType CT_LSocket = {
     .has_pending_data = NULL,
     .process_pending_data = NULL,
 };
-#if 0
+
 int connBlock(connection *conn) {
+    return 0;
     if (conn->fd == -1) return C_ERR;
     return anetBlock(NULL, conn->fd);
 }
 
 int connNonBlock(connection *conn) {
+    return 0;
     if (conn->fd == -1) return C_ERR;
     return anetNonBlock(NULL, conn->fd);
 }
 
 int connEnableTcpNoDelay(connection *conn) {
+    return 0;
     if (conn->fd == -1) return C_ERR;
     return anetEnableTcpNoDelay(NULL, conn->fd);
 }
 
 int connDisableTcpNoDelay(connection *conn) {
+    return 0;
     if (conn->fd == -1) return C_ERR;
     return anetDisableTcpNoDelay(NULL, conn->fd);
 }
 
 int connKeepAlive(connection *conn, int interval) {
+    return 0;
     if (conn->fd == -1) return C_ERR;
     return anetKeepAlive(NULL, conn->fd, interval);
 }
 
 int connSendTimeout(connection *conn, long long ms) {
+    return 0;
     return anetSendTimeout(NULL, conn->fd, ms);
 }
 
 int connRecvTimeout(connection *conn, long long ms) {
+    return 0;
     return anetRecvTimeout(NULL, conn->fd, ms);
 }
-#endif
 int RedisRegisterConnectionTypeLSocket(void)
 {
     return connTypeRegister(&CT_LSocket);
