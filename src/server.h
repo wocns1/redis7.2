@@ -1268,7 +1268,7 @@ typedef struct client {
     int bufpos;
     size_t buf_usable_size; /* Usable size of buffer. */
     char *buf;
-    int count;
+    unsigned long long count;
 #ifdef LOG_REQ_RES
     clientReqResInfo reqres;
 #endif
@@ -2044,7 +2044,7 @@ struct redisServer {
     int reply_buffer_resizing_enabled; /* Is reply buffer resizing enabled (1 by default) */
     /* Local environment */
     char *locale_collate;
-    int wocount;
+    unsigned long long wocount;
     int op;
 };
 

@@ -7472,13 +7472,15 @@ woflagset:
     else
         c->flags |= CLIENT_SCRIPT;
 
-    int count = server.wocount;
+    unsigned long long count = server.wocount;
     if (!server.wocount)
         server.wocount = MAX_QUERIES;
-    int i = 0;
-    int size = 0;
+    unsigned long long i = 0;
     //if (server.op == 0)
     //    flushallCommand(c);
+    clock_t t;
+    t = clock();
+ 
     while (i < count)
     {
         c->count = i;
@@ -7486,11 +7488,20 @@ woflagset:
         snprintf(c->buf, 10, "");
         c->bufpos = 0;
         readQueryFromClient(conn);
-        serverLog(LL_VERBOSE, "Response[%d] %s\n", i, c->buf);
+        //serverLog(LL_VERBOSE, "Response[%llu] %s\n", i, c->buf);
         i++;
     }
+    clock_t t_done = clock() - t;
     if (server.op == 0)
         saveCommand(c);
+    double time_taken_done = ((double)t_done)/CLOCKS_PER_SEC; // in seconds
+    serverLog(LL_VERBOSE, " %s operation for %llu redis packets took %lf seconds\n", (server.op == 0)? "SET" : "GET", server.wocount, time_taken_done);
+    if (server.op == 0)
+    {
+        clock_t t_save = clock() - t_done;
+        double time_taken_save = ((double)t_save) / CLOCKS_PER_SEC; // in seconds
+        serverLog(LL_VERBOSE, " Took another %lf seconds to save entries\n", time_taken_save);
+    }
 #endif
     //======================= END LOCAL CLIENT =====================================================
    // aeMain(server.el);
