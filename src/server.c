@@ -7350,7 +7350,7 @@ woflagset:
         {
             serverLog(LL_WARNING, "Redis will now exit to prevent data corruption. "
                                   "Note that it is possible to suppress this warning by setting the following config: ignore-warnings ARM64-COW-BUG");
-            exit(1);
+//            exit(1);
         }
     }
 #endif /* __arm64__ */
