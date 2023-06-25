@@ -203,10 +203,10 @@ static int connLocalSocketWrite(connection *conn, const void *data, size_t data_
 static int connLocalSocketRead(connection *conn, void *buf, size_t buf_len) {
     int ret = 0;
     if (server.op == 0) {
-        ret = snprintf(buf, buf_len, "*3\r\n$3\r\nSET\r\n$12\r\nwo-%09llu\r\n$32\r\n%032llu\r\n", conn->count, conn->count);
+        ret = snprintf(buf, buf_len, "*3\r\n$3\r\nSET\r\n$128\r\nwo-%0125llu\r\n$128\r\n%0128llu\r\n", conn->count, conn->count);
     }
     else {
-        ret = snprintf(buf, buf_len, "*2\r\n$3\r\nGET\r\n$12\r\nwo-%09llu\r\n", (conn->count));
+        ret = snprintf(buf, buf_len, "*2\r\n$3\r\nGET\r\n$128\r\nwo-%0125llu\r\n", (conn->count));
     }
     //serverLog(LL_VERBOSE, "buf %s\n", buf);
     /*
