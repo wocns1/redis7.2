@@ -7476,19 +7476,38 @@ woflagset:
     if (!server.wocount)
         server.wocount = MAX_QUERIES;
     unsigned long long i = 0;
+    unsigned long long arr_base_traverse = 0;
+    unsigned long long arr_traverse = 0;
     //if (server.op == 0)
     //    flushallCommand(c);
     clock_t t;
+
     t = clock();
- 
     while (i < count)
     {
-        c->count = i;
+
+#if 1
+        if (server.op == 1)
+        {
+            conn->count = arr_traverse;
+            if (arr_traverse >= count)
+            {
+                arr_base_traverse += 1;
+                arr_traverse = arr_base_traverse;
+            }
+            arr_traverse += 100000;
+        }
+        else
+            conn->count = i;
+#else
         conn->count = i;
+#endif
+        c->count = i;
+        //        conn->count = i;
         snprintf(c->buf, 10, "");
         c->bufpos = 0;
         readQueryFromClient(conn);
-        //serverLog(LL_VERBOSE, "Response[%llu] %s\n", i, c->buf);
+        // serverLog(LL_VERBOSE, "Response[%llu] %s\n", i, c->buf);
         i++;
     }
     clock_t t_done = clock() - t;
