@@ -168,7 +168,7 @@ static void connLocalSocketClose(connection *conn)
 }
 
 static int connLocalSocketWritev(connection *conn, const void *data, size_t data_len) {
-    serverLog(LL_VERBOSE,"conn %p write data %s len :%ld", conn, (char*)data, data_len);
+    //serverLog(LL_VERBOSE,"conn %p write data %s len :%ld", conn, (char*)data, data_len);
 #if 0
     int ret = write(conn->fd, data, data_len);
     if (ret < 0 && errno != EAGAIN) {
@@ -184,7 +184,7 @@ static int connLocalSocketWritev(connection *conn, const void *data, size_t data
     return 0;
 }
 static int connLocalSocketWrite(connection *conn, const void *data, size_t data_len) {
-    serverLog(LL_VERBOSE,"conn %p write data %s len :%ld", conn, (char*)data, data_len);
+    //serverLog(LL_VERBOSE,"conn %p write data %s len :%ld", conn, (char*)data, data_len);
 #if 0
     int ret = write(conn->fd, data, data_len);
     if (ret < 0 && errno != EAGAIN) {
@@ -203,21 +203,13 @@ static int connLocalSocketWrite(connection *conn, const void *data, size_t data_
 static int connLocalSocketRead(connection *conn, void *buf, size_t buf_len) {
     int ret = 0;
     if (server.op == 0) {
-        ret = snprintf(buf, buf_len, "*3\r\n$3\r\nSET\r\n$128\r\nwo-%0125llu\r\n$128\r\n%0128llu\r\n", conn->count, conn->count);
+        ret = snprintf(buf, buf_len, "*3\r\n$3\r\nSET\r\n$128\r\nwo-%0125llu\r\n$128\r\n%0128llu\r\n", server.el->wcnt, server.el->wcnt);
     }
     else {
-        ret = snprintf(buf, buf_len, "*2\r\n$3\r\nGET\r\n$128\r\nwo-%0125llu\r\n", (conn->count));
+        ret = snprintf(buf, buf_len, "*2\r\n$3\r\nGET\r\n$128\r\nwo-%0125llu\r\n", server.el->wcnt);
     }
+    //Whileone
     //serverLog(LL_VERBOSE, "buf %s\n", buf);
-    /*
-    char *inarray[] = {"*3\r\n$3\r\nSET\r\n$4\r\nwo-0\r\n$4\r\n0000\r\n",
-    "*3\r\n$3\r\nSET\r\n$4\r\nwo-1\r\n$4\r\n0001\r\n",
-    "*3\r\n$3\r\nSET\r\n$4\r\nwo-2\r\n$4\r\n0002\r\n",
-    "*3\r\n$3\r\nSET\r\n$4\r\nwo-3\r\n$4\r\n0003\r\n",
-    "*3\r\n$3\r\nSET\r\n$4\r\nwo-4\r\n$4\r\n0004\r\n",
-    "*2\r\n$3\r\nGET\r\n$4\r\nwo-1\r\n",
-      };
-      */
     //int ret = snprintf(buf, buf_len, "%s", inarray[conn->count]);
     if (!ret) {
         conn->state = CONN_STATE_CLOSED;
@@ -345,7 +337,7 @@ static void connLocalSocketEventHandler(struct aeEventLoop *el, int fd, void *cl
 }
 
 static void connLocalSocketAcceptHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
-    #if 0
+#if 1
     int cport, cfd, max = MAX_ACCEPTS_PER_CALL;
     char cip[NET_IP_STR_LEN];
     UNUSED(el);
@@ -353,7 +345,8 @@ static void connLocalSocketAcceptHandler(aeEventLoop *el, int fd, void *privdata
     UNUSED(privdata);
 
     while(max--) {
-        cfd = anetTcpAccept(server.neterr, fd, cip, sizeof(cip), &cport);
+//        cfd = anetTcpAccept(server.neterr, fd, cip, sizeof(cip), &cport);
+        cfd = 0;
         if (cfd == ANET_ERR) {
             if (errno != EWOULDBLOCK)
                 serverLog(LL_WARNING,
@@ -361,7 +354,7 @@ static void connLocalSocketAcceptHandler(aeEventLoop *el, int fd, void *privdata
             return;
         }
         serverLog(LL_VERBOSE,"Accepted %s:%d", cip, cport);
-        acceptCommonHandler(connCreateAcceptedSocket(cfd, NULL),0,cip);
+        acceptCommonHandler(connCreateAcceptedLSocket(cfd, NULL),0,cip);
     }
 #endif
 }
@@ -385,6 +378,7 @@ static int connLocalSocketIsLocal(connection *conn) {
 
 static int connLocalSocketListen(connListener *listener) {
     return listenToPort(listener);
+    return 0;
 }
 
 static int connLocalSocketBlockingConnect(connection *conn, const char *addr, int port, long long timeout) {

@@ -2777,6 +2777,17 @@ void initListeners(void) {
     int conn_index;
     connListener *listener;
     if (server.port != 0) {
+        conn_index = connectionIndexByType(CONN_TYPE_LOCAL);
+        if (conn_index < 0)
+            serverPanic("Failed finding connection listener of %s", CONN_TYPE_LOCAL);
+        listener = &server.listeners[conn_index];
+        listener->bindaddr = server.bindaddr;
+        listener->bindaddr_count = server.bindaddr_count;
+        listener->port = server.port;
+        listener->ct = connectionByType(CONN_TYPE_LOCAL);
+    }
+#if 0
+    if (server.port != 0) {
         conn_index = connectionIndexByType(CONN_TYPE_SOCKET);
         if (conn_index < 0)
             serverPanic("Failed finding connection listener of %s", CONN_TYPE_SOCKET);
@@ -2819,6 +2830,7 @@ void initListeners(void) {
         listener->ct = connectionByType(CONN_TYPE_UNIX);
         listener->priv = &server.unixsocketperm; /* Unix socket specified */
     }
+#endif
 
     /* create all the configured listener, and add handler to start to accept */
     int listen_fds = 0;
@@ -7397,7 +7409,7 @@ woflagset:
         moduleLoadFromQueue();
     }
     ACLLoadUsersAtStartup();
-    //initListeners();
+    initListeners();
     if (server.cluster_enabled)
     {
         clusterInitListeners();
@@ -7450,15 +7462,17 @@ woflagset:
     }
 
     /* Warning the user about suspicious maxmemory setting. */
+#if 1
+    server.maxmemory = 1024 * 1024* 1024;
     if (server.maxmemory > 0 && server.maxmemory < 1024 * 1024)
     {
         serverLog(LL_WARNING, "WARNING: You specified a maxmemory value that is less than 1MB (current value is %llu bytes). Are you sure this is what you really want?", server.maxmemory);
     }
-
+#endif
     redisSetCpuAffinity(server.server_cpulist);
     setOOMScoreAdj(-1);
     //=======================LOCAL CLIENT=====================================================
-#if 1
+#if 0
     //connection *conn = connCreateLSocket();
     connection *conn = connCreateLSocket();
     //connection *conn = connCreate(connTypeOfLocalSocket());
@@ -7521,12 +7535,15 @@ woflagset:
         double time_taken_save = ((double)t_save) / CLOCKS_PER_SEC; // in seconds
         serverLog(LL_VERBOSE, " Took another %lf seconds to save entries\n", time_taken_save);
     }
-#endif
+#else
     //======================= END LOCAL CLIENT =====================================================
-   // aeMain(server.el);
-    //aeDeleteEventLoop(server.el);
+    server.el->wcnt = server.wocount;
+    server.el->op = server.op;
+    aeMain(server.el);
+    aeDeleteEventLoop(server.el);
     //serverLog(LL_WARNING, "WARNING: You specified a maxmemory value that is less than 1MB (current value is %llu bytes). Are you sure this is what you really want?", server.maxmemory);
     //    processLocalClient();
+#endif
     return 0;
 }
 

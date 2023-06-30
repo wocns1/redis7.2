@@ -396,7 +396,8 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
         }
         /* Call the multiplexing API, will return only on timeout or when
          * some event fires. */
-        numevents = aeApiPoll(eventLoop, tvp);
+        //numevents = aeApiPoll(eventLoop, tvp);
+        numevents = 1;
 
         /* Don't process file events if not requested. */
         if (!(flags & AE_FILE_EVENTS)) {
@@ -410,7 +411,8 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
         for (j = 0; j < numevents; j++) {
             int fd = eventLoop->fired[j].fd;
             aeFileEvent *fe = &eventLoop->events[fd];
-            int mask = eventLoop->fired[j].mask;
+            //int mask = eventLoop->fired[j].mask;
+            int mask = mask | AE_READABLE;
             int fired = 0; /* Number of events fired for current fd. */
 
             /* Normally we execute the readable event first, and the writable
@@ -432,14 +434,17 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
              *
              * Fire the readable event if the call sequence is not
              * inverted. */
-            if (!invert && fe->mask & mask & AE_READABLE) {
+            //if (!invert && fe->mask & mask & AE_READABLE) {
+            if (1) {
                 fe->rfileProc(eventLoop,fd,fe->clientData,mask);
+                //serverLog(LL_VERBOSE, "Response[%llu] %s\n", eventLoop->wcnt, c->buf);
                 fired++;
                 fe = &eventLoop->events[fd]; /* Refresh in case of resize. */
             }
 
             /* Fire the writable event. */
-            if (fe->mask & mask & AE_WRITABLE) {
+            //if (fe->mask & mask & AE_WRITABLE) {
+            if (0) {
                 if (!fired || fe->wfileProc != fe->rfileProc) {
                     fe->wfileProc(eventLoop,fd,fe->clientData,mask);
                     fired++;
@@ -448,6 +453,7 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
 
             /* If we have to invert the call, fire the readable event now
              * after the writable one. */
+            invert = 1;
             if (invert) {
                 fe = &eventLoop->events[fd]; /* Refresh in case of resize. */
                 if ((fe->mask & mask & AE_READABLE) &&
@@ -492,7 +498,7 @@ int aeWait(int fd, int mask, long long milliseconds) {
 
 void aeMain(aeEventLoop *eventLoop) {
     eventLoop->stop = 0;
-    while (!eventLoop->stop) {
+    while (eventLoop->wcnt--) {
         aeProcessEvents(eventLoop, AE_ALL_EVENTS|
                                    AE_CALL_BEFORE_SLEEP|
                                    AE_CALL_AFTER_SLEEP);

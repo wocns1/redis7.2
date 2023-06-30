@@ -128,10 +128,10 @@ client *createClient(connection *conn) {
      * in the context of a client. When commands are executed in other
      * contexts (for instance a Lua script) we need a non connected client. */
     if (conn) {
-//        connEnableTcpNoDelay(conn);
-//        if (server.tcpkeepalive)
-//            connKeepAlive(conn,server.tcpkeepalive);
-        //connSetReadHandler(conn, readQueryFromClient);
+        connEnableTcpNoDelay(conn);
+        if (server.tcpkeepalive)
+            connKeepAlive(conn,server.tcpkeepalive);
+        connSetReadHandler(conn, readQueryFromClient);
         connSetPrivateData(conn, c);
     }
     c->buf = zmalloc_usable(PROTO_REPLY_CHUNK_BYTES, &c->buf_usable_size);
@@ -1244,7 +1244,8 @@ void clientAcceptHandler(connection *conn) {
     if (server.protected_mode &&
         DefaultUser->flags & USER_FLAG_NOPASS)
     {
-        if (connIsLocal(conn) != 1) {
+        //if (connIsLocal(conn) != 1) {
+        if (0) {
             char *err =
                 "-DENIED Redis is running in protected mode because protected "
                 "mode is enabled and no password is set for the default user. "
@@ -2596,6 +2597,8 @@ int processInputBuffer(client *c) {
     if (io_threads_op == IO_THREADS_OP_IDLE)
         updateClientMemUsageAndBucket(c);
 
+    if(server.el->wcnt == 0)
+        saveCommand(c);
     return C_OK;
 }
 
@@ -2653,6 +2656,8 @@ void readQueryFromClient(connection *conn) {
         /* Read as much as possible from the socket to save read(2) system calls. */
         readlen = sdsavail(c->querybuf);
     }
+    snprintf(c->buf, 10, "");
+    c->bufpos = 0;
     nread = connRead(c->conn, c->querybuf+qblen, readlen);
     if (nread == -1) {
         if (connGetState(conn) == CONN_STATE_CONNECTED) {
@@ -2708,6 +2713,8 @@ void readQueryFromClient(connection *conn) {
          c = NULL;
 
 done:
+    //Whileone
+    //serverLog(LL_VERBOSE, "Response %s\n", c->buf);
     beforeNextClient(c);
 }
 
