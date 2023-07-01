@@ -203,10 +203,18 @@ static int connLocalSocketWrite(connection *conn, const void *data, size_t data_
 static int connLocalSocketRead(connection *conn, void *buf, size_t buf_len) {
     int ret = 0;
     if (server.op == 0) {
-        ret = snprintf(buf, buf_len, "*3\r\n$3\r\nSET\r\n$128\r\nwo-%0125llu\r\n$128\r\n%0128llu\r\n", server.el->wcnt, server.el->wcnt);
+        ret = snprintf(buf, buf_len, "*3\r\n$3\r\nSET\r\n$128\r\nwo-%0125llu\r\n$128\r\n%0128llu\r\n",
+         server.el->arr_traverse, server.el->arr_traverse);
+         server.el->arr_traverse++;
     }
     else {
-        ret = snprintf(buf, buf_len, "*2\r\n$3\r\nGET\r\n$128\r\nwo-%0125llu\r\n", server.el->wcnt);
+        ret = snprintf(buf, buf_len, "*2\r\n$3\r\nGET\r\n$128\r\nwo-%0125llu\r\n", server.el->arr_traverse);
+        if (server.el->arr_traverse >= server.el->wcnt)
+        {
+            server.el->arr_base_traverse += 1;
+            server.el->arr_traverse = server.el->arr_base_traverse;
+        }
+        server.el->arr_traverse += 10000;
     }
     //Whileone
     //serverLog(LL_VERBOSE, "buf %s\n", buf);

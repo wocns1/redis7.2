@@ -2597,7 +2597,7 @@ int processInputBuffer(client *c) {
     if (io_threads_op == IO_THREADS_OP_IDLE)
         updateClientMemUsageAndBucket(c);
 
-    if(server.el->wcnt == 0)
+    if((server.el->op == 0) && (server.el->arr_traverse == server.el->wcnt))
         saveCommand(c);
     return C_OK;
 }

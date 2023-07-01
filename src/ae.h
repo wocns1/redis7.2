@@ -109,6 +109,8 @@ typedef struct aeEventLoop {
     aeBeforeSleepProc *aftersleep;
     int flags;
     unsigned long long wcnt;
+    unsigned long long arr_traverse;
+    unsigned long long arr_base_traverse;
     int op;
 } aeEventLoop;
 

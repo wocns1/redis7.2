@@ -498,10 +498,14 @@ int aeWait(int fd, int mask, long long milliseconds) {
 
 void aeMain(aeEventLoop *eventLoop) {
     eventLoop->stop = 0;
-    while (eventLoop->wcnt--) {
+    eventLoop->arr_traverse = 0;
+    eventLoop->arr_base_traverse = 0;
+    unsigned long long i = 0;
+    while (i < eventLoop->wcnt) {
         aeProcessEvents(eventLoop, AE_ALL_EVENTS|
                                    AE_CALL_BEFORE_SLEEP|
                                    AE_CALL_AFTER_SLEEP);
+        i++;
     }
 }
 
