@@ -343,6 +343,17 @@ static int processTimeEvents(aeEventLoop *eventLoop) {
     return processed;
 }
 
+double time_diff(struct timeval x, struct timeval y)
+{
+    double x_ms, y_ms, diff;
+
+    x_ms = (double)x.tv_sec * 1000000 + (double)x.tv_usec;
+    y_ms = (double)y.tv_sec * 1000000 + (double)y.tv_usec;
+
+    diff = (double)y_ms - (double)x_ms;
+
+    return diff;
+}
 /* Process every pending time event, then every pending file event
  * (that may be registered by time event callbacks just processed).
  * Without special flags the function sleeps until some file event
@@ -361,6 +372,8 @@ static int processTimeEvents(aeEventLoop *eventLoop) {
 int aeProcessEvents(aeEventLoop *eventLoop, int flags)
 {
     int processed = 0, numevents;
+    struct timeval start;
+    struct timeval end;
 
     /* Nothing to do? return ASAP */
     if (!(flags & AE_TIME_EVENTS) && !(flags & AE_FILE_EVENTS)) return 0;
@@ -408,6 +421,8 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
             eventLoop->aftersleep(eventLoop);
 
         for (j = 0; j < numevents; j++) {
+            gettimeofday(&start , NULL);
+            printf("Time between 2 req is %f us\n", time_diff(end, start));
             int fd = eventLoop->fired[j].fd;
             aeFileEvent *fe = &eventLoop->events[fd];
             int mask = eventLoop->fired[j].mask;
@@ -459,6 +474,7 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
             }
 
             processed++;
+            gettimeofday(&end, NULL);
         }
     }
     /* Check time events */
