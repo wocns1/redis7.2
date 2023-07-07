@@ -372,8 +372,8 @@ double time_diff(struct timeval x, struct timeval y)
 int aeProcessEvents(aeEventLoop *eventLoop, int flags)
 {
     int processed = 0, numevents;
-    struct timeval start;
-    struct timeval end;
+    struct timespec tstart;
+    struct timespec tend;
 
     /* Nothing to do? return ASAP */
     if (!(flags & AE_TIME_EVENTS) && !(flags & AE_FILE_EVENTS)) return 0;
@@ -420,9 +420,12 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
         if (eventLoop->aftersleep != NULL && flags & AE_CALL_AFTER_SLEEP)
             eventLoop->aftersleep(eventLoop);
 
-        for (j = 0; j < numevents; j++) {
-            gettimeofday(&start , NULL);
-            printf("Time between 2 req is %f us\n", time_diff(end, start));
+        for (j = 0; j < numevents; j++)
+        {
+            clock_gettime(CLOCK_MONOTONIC, &tstart);
+            printf("Time between 2 req is %.6f microSec\n",
+                   1.0e+6 * (((double)tstart.tv_sec + 1.0e-9 * tstart.tv_nsec) -
+                             ((double)tend.tv_sec + 1.0e-9 * tend.tv_nsec)));
             int fd = eventLoop->fired[j].fd;
             aeFileEvent *fe = &eventLoop->events[fd];
             int mask = eventLoop->fired[j].mask;
@@ -474,7 +477,7 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
             }
 
             processed++;
-            gettimeofday(&end, NULL);
+            clock_gettime(CLOCK_MONOTONIC, &tend);
         }
     }
     /* Check time events */
