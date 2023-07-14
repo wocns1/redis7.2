@@ -208,12 +208,12 @@ static int connLocalSocketRead(connection *conn, void *buf, size_t buf_len) {
          server.el->arr_traverse++;
     }
     else {
-        ret = snprintf(buf, buf_len, "*2\r\n$3\r\nGET\r\n$128\r\nwo-%0125llu\r\n", server.el->arr_traverse);
         if (server.el->arr_traverse >= server.el->wcnt)
         {
             server.el->arr_base_traverse += 1;
             server.el->arr_traverse = server.el->arr_base_traverse;
         }
+        ret = snprintf(buf, buf_len, "*2\r\n$3\r\nGET\r\n$128\r\nwo-%0125llu\r\n", server.el->arr_traverse);
         server.el->arr_traverse += 10000;
     }
     //Whileone
